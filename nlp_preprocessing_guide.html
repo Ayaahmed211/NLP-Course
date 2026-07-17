@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NLP Text Preprocessing Guide — Tokenization, Stop Words, Stemming & Lemmatization</title>
+<style>
+  :root {
+    --bg: #fafaf8;
+    --ink: #1e1e1e;
+    --muted: #5a5a5a;
+    --accent: #8a4fff;
+    --accent-dark: #5c2fd6;
+    --card: #ffffff;
+    --border: #e5e2f0;
+    --code-bg: #f4f1fb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Georgia', 'Times New Roman', serif;
+    line-height: 1.65;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 48px 24px 100px; }
+
+  header.hero {
+    text-align: center;
+    padding: 56px 24px 44px;
+    background: linear-gradient(135deg, #6d3fd6 0%, #9b6bff 100%);
+    color: white;
+  }
+  header.hero h1 {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 2.1rem;
+    margin: 0 0 10px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  header.hero p {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 1.05rem;
+    opacity: 0.92;
+    margin: 0;
+  }
+
+  nav.toc {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px 28px;
+    margin: -30px auto 40px;
+    max-width: 812px;
+    box-shadow: 0 4px 18px rgba(90, 50, 200, 0.08);
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+  }
+  nav.toc h2 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent-dark);
+    margin: 0 0 12px;
+  }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin-bottom: 6px; }
+  nav.toc a { color: var(--ink); text-decoration: none; }
+  nav.toc a:hover { color: var(--accent-dark); text-decoration: underline; }
+
+  section.topic {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 34px 38px;
+    margin-bottom: 32px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+  }
+
+  .topic-label {
+    display: inline-block;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 0.72rem;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: white;
+    background: var(--accent);
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-bottom: 14px;
+  }
+
+  h2 {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 1.55rem;
+    margin: 0 0 6px;
+    color: var(--accent-dark);
+  }
+  h3 {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 1.15rem;
+    margin: 26px 0 10px;
+    color: var(--ink);
+  }
+  p { margin: 12px 0; }
+  ul, ol { margin: 12px 0; padding-left: 24px; }
+  li { margin-bottom: 6px; }
+
+  .example-box {
+    background: var(--code-bg);
+    border-left: 4px solid var(--accent);
+    border-radius: 6px;
+    padding: 14px 20px;
+    margin: 16px 0;
+    font-family: 'Menlo', 'Consolas', monospace;
+    font-size: 0.92rem;
+  }
+  .example-box .label {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 700;
+    color: var(--accent-dark);
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  code {
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Menlo', 'Consolas', monospace;
+    font-size: 0.9em;
+    color: var(--accent-dark);
+  }
+  pre {
+    background: #2b2440;
+    color: #e8e3ff;
+    padding: 18px 22px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-size: 0.88rem;
+    font-family: 'Menlo', 'Consolas', monospace;
+    line-height: 1.5;
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 18px 0;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 0.92rem;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 10px 14px;
+    text-align: left;
+  }
+  th {
+    background: var(--code-bg);
+    color: var(--accent-dark);
+    font-weight: 700;
+  }
+  tr:nth-child(even) { background: #fbfaff; }
+
+  .callout {
+    background: #fff6e8;
+    border: 1px solid #f0dba8;
+    border-radius: 8px;
+    padding: 14px 20px;
+    margin: 16px 0;
+    font-size: 0.95rem;
+  }
+  .callout strong { color: #a06a00; }
+
+  .divider {
+    text-align: center;
+    color: var(--accent);
+    font-size: 1.2rem;
+    letter-spacing: 8px;
+    margin: 8px 0 30px;
+  }
+
+  footer {
+    text-align: center;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-top: 40px;
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <h1>NLP Text Preprocessing</h1>
+  <p>A study guide covering Tokenization, Stop Words, Stemming, and Lemmatization</p>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#roadmap">Course Roadmap: Where Preprocessing Fits</a></li>
+    <li><a href="#tokenization">Video 1 — Tokenization</a></li>
+    <li><a href="#stopwords">Video 2 — Stop Words</a></li>
+    <li><a href="#stemming">Video 3 — Stemming</a></li>
+    <li><a href="#lemmatization">Video 4 — Lemmatization</a></li>
+    <li><a href="#summary">Summary Comparison</a></li>
+  </ol>
+</nav>
+
+<!-- ROADMAP -->
+<section class="topic" id="roadmap">
+  <span class="topic-label">Introduction</span>
+  <h2>The Big Picture: Why Preprocessing Matters</h2>
+  <p>
+    In any AI pipeline, raw data is never fed straight into a model — it first goes through
+    <strong>preprocessing</strong>. In Computer Vision, this means taking images and applying filters,
+    smoothing, denoising, or domain transformations before the pixels ever reach the model. Once
+    the images are cleaned up, they're converted into arrays of numbers that a machine learning
+    or deep learning model can actually learn from.
+  </p>
+  <p>
+    Natural Language Processing follows the exact same logic, just with text instead of pixels.
+    The pipeline looks like this:
+  </p>
+  <ol>
+    <li>Start with a raw text dataset (a <strong>corpus</strong>).</li>
+    <li>Apply text preprocessing: tokenization, removing stop words, stemming/lemmatization, and more.</li>
+    <li>Convert the cleaned text into numbers, since models can't understand raw text directly.
+      Common approaches include TF-IDF, Bag-of-Words, N-grams, and more advanced word-to-vector
+      techniques like Word2Vec and Word Embeddings.</li>
+    <li>Feed the numeric representation into a model — anything from a classic classifier
+      (e.g. the classic <em>spam vs. ham</em> email classification example) to advanced architectures
+      like RNNs, LSTMs, GRUs, Encoder-Decoder models, and Transformers (e.g. BERT).</li>
+  </ol>
+  <p>
+    This four-part series focuses on the very first stage of that pipeline — cleaning and preparing
+    raw text — starting with <strong>Tokenization</strong>, then <strong>Stop Word Removal</strong>,
+    then <strong>Stemming</strong>, and finally <strong>Lemmatization</strong>.
+  </p>
+</section>
+
+<!-- TOKENIZATION -->
+<section class="topic" id="tokenization">
+  <span class="topic-label">Video 1</span>
+  <h2>Tokenization</h2>
+
+  <h3>What is it?</h3>
+  <p>
+    Tokenization is the process of breaking a paragraph or corpus into smaller pieces called
+    <strong>tokens</strong>. A token can be a word or a sentence, depending on the type of
+    tokenization used. Several libraries can do this — the two the course focuses on are
+    <strong>NLTK</strong> and <strong>spaCy</strong>, with NLTK being the primary tool used
+    in the examples. The two most common functions are:
+  </p>
+  <ul>
+    <li><strong>Word Tokenizer</strong> — splits a paragraph into individual words, so each
+      word can later be converted into numbers.</li>
+    <li><strong>Sentence Tokenizer</strong> — splits a paragraph into individual sentences.</li>
+  </ul>
+
+  <h3>How word tokenization actually works</h3>
+  <p>Take the example sentence:</p>
+  <div class="example-box"><span class="label">Input</span>"Let's go to New York!"</div>
+  <p>The tokenizer processes this in stages:</p>
+  <ol>
+    <li><strong>Splitting on whitespace</strong> — the text is first broken wherever there's a space
+      between words.</li>
+    <li><strong>Prefix handling</strong> — anything attached before a word (like a leading
+      punctuation mark) gets separated from it.</li>
+    <li><strong>Exception handling</strong> — the tokenizer recognizes contractions, i.e. two words
+      that have been merged with an apostrophe, like <code>Let's</code>. It intelligently splits
+      this into <code>Let</code> and <code>'s</code>.</li>
+    <li><strong>Suffix handling</strong> — anything attached after a word (trailing punctuation,
+      like the apostrophes around "New York" or an exclamation mark) gets separated too. You can
+      also manually control which punctuation marks should trigger a split.</li>
+  </ol>
+
+  <div class="callout">
+    <strong>Smart splitting:</strong> The algorithm is smart about compound expressions. For a
+    multi-word name like <em>New York</em>, it recognizes both words belong together as a single
+    unit and keeps them associated — it doesn't just arbitrarily split every space-separated chunk.
+    Similarly, a name like <em>King Kong</em> is understood as one entity rather than two unrelated
+    tokens. For languages that don't use apostrophes the same way (e.g. Chinese, Hindi, Japanese),
+    the tokenizer instead relies on implicit meaning — checking whether two adjacent words form a
+    meaningful unit together before deciding how to split them.
+  </div>
+
+  <h3>Code walkthrough (NLTK)</h3>
+  <p>First, install NLTK:</p>
+  <pre><code>pip install nltk</code></pre>
+  <p>Then download the required NLTK resources/packages, import the tokenizer functions, and run them:</p>
+  <pre><code>import nltk
+nltk.download()  # downloads all NLTK packages/resources
+
+from nltk.tokenize import sent_tokenize, word_tokenize
+
+text = "Hello! How are you today."
+
+# Sentence tokenization — splits on punctuation like ! ? .
+print(sent_tokenize(text))
+
+# Word tokenization — splits into individual words
+print(word_tokenize(text))</code></pre>
+
+  <table>
+    <tr><th>Function</th><th>Behavior</th></tr>
+    <tr>
+      <td><code>sent_tokenize()</code></td>
+      <td>Splits the paragraph into separate sentences based on punctuation cues such as
+      periods, exclamation marks, and question marks.</td>
+    </tr>
+    <tr>
+      <td><code>word_tokenize()</code></td>
+      <td>Splits a sentence into individual words, each returned in its own quotes — even
+      punctuation marks (like <code>!</code> or <code>.</code>) become separate tokens. It correctly
+      keeps compound words like "New York" together and correctly separates contractions like
+      "you're" into "you" and "'re" — something Python's plain <code>.split()</code> can't do, since
+      it would keep "you're" as one single chunk.</td>
+    </tr>
+  </table>
+
+  <h3>What's coming next in the roadmap</h3>
+  <p>
+    After tokenization, the course moves on to: Stop Words removal, Regular Expressions, Bag of
+    Words, then more advanced techniques like Word2Vec/Word Embeddings, RNNs, LSTMs, GRUs,
+    Encoders/Decoders, and Transformers such as BERT — plus practical applications using Hugging Face.
+  </p>
+</section>
+
+<!-- STOP WORDS -->
+<section class="topic" id="stopwords">
+  <span class="topic-label">Video 2</span>
+  <h2>Stop Words</h2>
+
+  <h3>What is it?</h3>
+  <p>
+    Just as Computer Vision techniques (like SIFT and FAST) extract only the important pixels/features
+    from an image so a model can focus on what matters, NLP has an equivalent idea for text.
+    In any paragraph, some words carry very little meaning or importance for the model — words like
+    <em>"the," "and," "a," "of," "was"</em>. These low-value, frequently-occurring words are called
+    <strong>stop words</strong>, and removing them helps the model focus on the words that actually matter.
+  </p>
+
+  <h3>Where do stop word lists come from?</h3>
+  <p>
+    You can pull a ready-made list of stop words from libraries like NLTK or spaCy, or you can build
+    your own custom stop word list. NLTK's stop word corpus supports many languages — you simply
+    specify the language (e.g. Arabic, English, German) and it returns the full list of stop words
+    for that language.
+  </p>
+
+  <h3>Code walkthrough</h3>
+  <pre><code>from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+
+nltk.download('stopwords')
+
+# Get stop words for a specific language
+arabic_stopwords = set(stopwords.words('arabic'))
+english_stopwords = set(stopwords.words('english'))
+german_stopwords  = set(stopwords.words('german'))</code></pre>
+
+  <p>Example: removing stop words from an Arabic business sentence meaning
+    <em>"The company released detailed data about its performance in the first quarter of this year"</em>.
+    Words like <em>"in"</em> and <em>"from"</em> are stop words here and get removed:</p>
+
+  <pre><code>text = "..."  # original sentence
+
+# 1. Tokenize the sentence into words
+words = word_tokenize(text)
+
+# 2. Load the stop word set for the matching language
+stop_words = set(stopwords.words('arabic'))
+
+# 3. Filter out any word that is a stop word
+filtered_words = [w for w in words if w not in stop_words]
+
+# 4. Rejoin the remaining words into a sentence
+result = ' '.join(filtered_words)
+print(result)</code></pre>
+
+  <div class="example-box">
+    <span class="label">Same logic, different language</span>
+    Input: "Hello! How are you today." → after removing stop words like "how," "are," "you" →
+    only the meaningful content words remain.
+  </div>
+
+  <h3>Why bother?</h3>
+  <ul>
+    <li>Reduces training time, since the model processes less (and less noisy) data.</li>
+    <li>Improves accuracy, because the model concentrates on the words that actually carry meaning.</li>
+  </ul>
+
+  <div class="callout">
+    <strong>Use your judgment:</strong> If you find your model's accuracy isn't great, you might
+    need to bring back some of the removed words. You're not locked into the default list — you
+    can build your own custom stop word set (as a Python <code>set</code>) tailored to your specific
+    corpus and apply it instead.
+  </div>
+</section>
+
+<!-- STEMMING -->
+<section class="topic" id="stemming">
+  <span class="topic-label">Video 3</span>
+  <h2>Stemming</h2>
+
+  <h3>What is it?</h3>
+  <p>
+    Stemming removes any prefix or suffix attached to a word and reduces it down to its <strong>root/stem</strong>.
+    For example:
+  </p>
+  <table>
+    <tr><th>Original word</th><th>Stem</th></tr>
+    <tr><td>running</td><td>run</td></tr>
+    <tr><td>cats</td><td>cat</td></tr>
+    <tr><td>jumping</td><td>jump</td></tr>
+  </table>
+
+  <h3>Why use it?</h3>
+  <p>
+    Stemming is widely used in applications like text classification and text clustering. Imagine
+    building your own dictionary/corpus by hand: it wouldn't make sense to store every single
+    inflection of a word separately — <em>go, going, gone, goes</em>, and so on. Instead, words are
+    reduced back to their root so the corpus contains fewer <strong>unique</strong> words. This keeps
+    the dictionary efficient: you can pack in a huge amount of text, but the vocabulary itself
+    stays compact, without repeating conjugations of the same core word.
+  </p>
+
+  <h3>Code walkthrough (Porter Stemmer)</h3>
+  <p>
+    NLTK offers several stemming algorithms — the three main ones are the <strong>Porter Stemmer</strong>,
+    the <strong>Snowball Stemmer</strong>, and the <strong>Lancaster Stemmer</strong>. The examples use
+    the Porter Stemmer:
+  </p>
+  <pre><code>from nltk.stem import PorterStemmer
+
+stemmer = PorterStemmer()
+words = ["jumping", "jumps", "jumped", "jumping"]
+
+for word in words:
+    print(word, "->", stemmer.stem(word))
+    # jumping -> jump
+    # jumps   -> jump
+    # jumped  -> jump</code></pre>
+
+  <p>
+    In practice, you'd first tokenize a sentence into words and then apply the stemmer to each
+    token, printing the original word next to its stem.
+  </p>
+
+  <h3>Where it's useful</h3>
+  <p>
+    You can use a word's stem/root to search within your corpus or to perform classification —
+    all while not losing the overall meaning of the sentence.
+  </p>
+
+  <div class="callout">
+    <strong>A preview of the next topic:</strong> Sometimes the Porter Stemmer (or stemming in
+    general) returns a result that's incorrect or doesn't make real sense as a word. There's a
+    better technique for this — <strong>Lemmatization</strong> — covered next.
+  </div>
+</section>
+
+<!-- LEMMATIZATION -->
+<section class="topic" id="lemmatization">
+  <span class="topic-label">Video 4</span>
+  <h2>Lemmatization</h2>
+
+  <h3>The problem with stemming</h3>
+  <p>
+    Stemming reduces a word to its root, and for many words that's harmless — e.g. reducing several
+    related words down to <em>job</em> doesn't affect meaning. But look at what happens with a word
+    like <strong>"information"</strong>: applying stemming to <em>information</em>, <em>informative</em>,
+    and <em>computers</em> can produce meaningless fragments like <em>"inform," "inform,"</em> and
+    <em>"comput."</em> That has no real meaning — if you were building a chatbot and it responded to
+    you with fragments like that, you wouldn't understand it at all. This is the core weakness of
+    stemming: it doesn't always know how to correctly reduce a word to a real root.
+  </p>
+
+  <h3>How lemmatization is different</h3>
+  <p>
+    Lemmatization is smarter: rather than blindly chopping affixes, it looks at the <strong>context</strong>
+    of the word — it tries to understand the meaning behind the sentence — and based on that returns
+    the correct base form. For example, lemmatization would correctly return <em>information</em>,
+    <em>informative</em>, and <em>computer/computers</em> as real, valid words, unlike stemming's
+    broken fragments.
+  </p>
+  <p>
+    Because of this, <strong>lemmatization is far more widely used</strong> in real NLP applications
+    than stemming. That said, stemming still has its place — it's fine to use when preserving the
+    exact context of a word isn't that important to you. If context matters, lemmatization is the
+    better choice, since it returns words appropriately based on their meaning in the sentence.
+  </p>
+
+  <h3>Code walkthrough (WordNet Lemmatizer)</h3>
+  <pre><code>from nltk.stem import WordNetLemmatizer
+from nltk.tokenize import word_tokenize
+
+lemmatizer = WordNetLemmatizer()
+
+text = "..."  # example sentence
+words = word_tokenize(text)
+
+for word in words:
+    print(word, "->", lemmatizer.lemmatize(word))</code></pre>
+
+  <p>
+    The workflow mirrors stemming: tokenize the sentence into words, then feed each token into the
+    lemmatizer instead of the stemmer, and compare the outputs.
+  </p>
+
+  <h3>Side-by-side comparison</h3>
+  <table>
+    <tr><th>Word</th><th>Stemming result</th><th>Lemmatization result</th></tr>
+    <tr><td>jumping</td><td>jump</td><td>jump (same here)</td></tr>
+    <tr><td>information</td><td>inform <em>(broken)</em></td><td>information <em>(correct)</em></td></tr>
+    <tr><td>informative</td><td>inform <em>(broken)</em></td><td>informative <em>(correct)</em></td></tr>
+    <tr><td>computers</td><td>comput <em>(broken)</em></td><td>computer <em>(correct)</em></td></tr>
+    <tr><td>dogs</td><td>dog (just drops the "s")</td><td>dog (drops the "s," same result)</td></tr>
+    <tr><td>lazy</td><td>couldn't reduce it correctly</td><td>correctly returns the base form based on context</td></tr>
+  </table>
+
+  <div class="callout">
+    <strong>Takeaway:</strong> Lemmatization is generally the better, more reliable choice because it
+    accounts for context and meaning — but stemming remains a valid, lighter-weight option for cases
+    where exact context doesn't matter much.
+  </div>
+</section>
+
+<!-- SUMMARY -->
+<section class="topic" id="summary">
+  <span class="topic-label">Wrap-up</span>
+  <h2>Summary Comparison</h2>
+  <table>
+    <tr><th>Technique</th><th>Purpose</th><th>Key NLTK Tool</th></tr>
+    <tr>
+      <td>Tokenization</td>
+      <td>Split raw text into sentences or words so it can eventually be converted into numbers</td>
+      <td><code>sent_tokenize()</code>, <code>word_tokenize()</code></td>
+    </tr>
+    <tr>
+      <td>Stop Word Removal</td>
+      <td>Discard low-value, high-frequency words to speed up training and sharpen accuracy</td>
+      <td><code>stopwords.words(language)</code></td>
+    </tr>
+    <tr>
+      <td>Stemming</td>
+      <td>Reduce words to a root form to shrink vocabulary size; fast but sometimes produces
+        non-words</td>
+      <td><code>PorterStemmer</code>, <code>SnowballStemmer</code>, <code>LancasterStemmer</code></td>
+    </tr>
+    <tr>
+      <td>Lemmatization</td>
+      <td>Reduce words to a valid base form using context; more accurate, more widely used in
+        practice</td>
+      <td><code>WordNetLemmatizer</code></td>
+    </tr>
+  </table>
+  <p>
+    Together, these four steps form the foundation of text preprocessing in any NLP pipeline —
+    setting the stage for turning cleaned text into numeric features (via TF-IDF, Bag-of-Words,
+    Word2Vec, etc.) that can be fed into machine learning or deep learning models.
+  </p>
+</section>
+
+<div class="divider">✦ ✦ ✦</div>
+<footer>
+  Compiled and translated from a 4-part Arabic-language NLP course covering Tokenization,
+  Stop Words, Stemming, and Lemmatization.
+</footer>
+
+</div>
+</body>
+</html>
