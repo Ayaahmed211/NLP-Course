@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Named Entity Recognition — Explained</title>
+<style>
+  :root{
+    --paper:#F7F4EC;
+    --ink:#232620;
+    --rule:#D8D2C0;
+    --person:#8A4E9E;   /* violet - PERSON */
+    --org:#2B5C8A;      /* blue   - ORG */
+    --loc:#3E7D4C;      /* green  - LOC/GPE */
+    --misc:#B5441E;     /* rust   - DATE / MONEY / misc */
+    --other:#96876A;    /* tan    - unrecognized / no-entity */
+    --card:#FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:"JetBrains Mono","SFMono-Regular",Consolas,monospace;}
+  a{color:var(--org);}
+
+  .wrap{max-width:860px;margin:0 auto;padding:0 28px 120px;}
+
+  .hero{
+    padding:70px 28px 40px;
+    max-width:860px;margin:0 auto;
+    border-bottom:1px solid var(--rule);
+  }
+  .eyebrow{
+    font-family:"JetBrains Mono",monospace;
+    font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--other);margin-bottom:18px;
+  }
+  h1{
+    font-size:clamp(34px,6vw,54px);
+    line-height:1.05;margin:0 0 18px;font-weight:600;letter-spacing:-0.01em;
+  }
+  .sub{font-size:19px;max-width:60ch;color:#4b4d43;margin-bottom:40px;}
+
+  /* highlighted-passage signature element, mimicking displaCy-style entity highlighting */
+  .ner-demo{
+    font-size:19px;
+    line-height:2.3;
+    padding:26px 0 6px;
+  }
+  .ent{
+    padding:3px 6px 4px;
+    border-radius:6px;
+    color:#fff;
+    font-weight:600;
+    white-space:nowrap;
+  }
+  .ent .lbl{
+    font-family:"JetBrains Mono",monospace;
+    font-size:10px;
+    font-weight:600;
+    letter-spacing:.05em;
+    vertical-align:super;
+    margin-left:3px;
+    opacity:.85;
+  }
+  .e-person{background:var(--person);}
+  .e-loc{background:var(--loc);}
+  .e-misc{background:var(--misc);}
+  .e-org{background:var(--org);}
+
+  .legend{
+    display:flex;flex-wrap:wrap;gap:16px;margin-top:22px;
+    font-family:"JetBrains Mono",monospace;font-size:11px;color:#4b4d43;
+  }
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+
+  section{padding:52px 0;border-bottom:1px solid var(--rule);}
+  section:last-of-type{border-bottom:none;}
+  .num{
+    font-family:"JetBrains Mono",monospace;font-size:12px;
+    color:var(--other);letter-spacing:.1em;margin-bottom:10px;
+  }
+  h2{font-size:28px;margin:0 0 20px;font-weight:600;letter-spacing:-0.01em;}
+  h3{font-size:18px;margin:28px 0 10px;font-weight:600;color:#2c2f27;}
+  p{margin:0 0 16px;font-size:16.5px;}
+  ul{margin:0 0 16px;padding-left:22px;}
+  li{margin-bottom:8px;font-size:16.5px;}
+
+  .apps{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:8px;}
+  @media(max-width:640px){.apps{grid-template-columns:1fr;}}
+  .app-card{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:20px 22px;}
+  .app-card .tag-label{
+    font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--misc);margin-bottom:8px;display:block;
+  }
+  .app-card h4{margin:0 0 8px;font-size:16px;}
+  .app-card p{font-size:14.5px;margin:0;color:#4b4d43;}
+
+  .code{
+    background:#1E2118;color:#EDEBDD;border-radius:10px;padding:18px 20px;
+    font-family:"JetBrains Mono",monospace;font-size:13.5px;overflow-x:auto;
+    margin:14px 0 22px;line-height:1.55;
+  }
+  .code .c1{color:#8A8F7C;}
+  .code .kw{color:#E39B6B;}
+  .code .fn{color:#8FB6D9;}
+  .code .str{color:#B7CE9A;}
+
+  .out-table{
+    width:100%;border-collapse:collapse;margin:14px 0 22px;
+    font-family:"JetBrains Mono",monospace;font-size:13.5px;
+  }
+  .out-table th,.out-table td{border:1px solid var(--rule);padding:8px 12px;text-align:left;}
+  .out-table th{background:#EFEAD9;font-weight:600;letter-spacing:.03em;}
+  .out-table td.tagcell span{color:#fff;padding:2px 7px;border-radius:999px;font-size:11px;}
+
+  .callout{
+    border-left:3px solid var(--misc);background:#FFF9F2;padding:14px 18px;
+    border-radius:0 8px 8px 0;margin:20px 0;font-size:15.5px;
+  }
+  .callout.ok{border-left-color:var(--loc);}
+  .callout b{color:var(--misc);}
+  .callout.ok b{color:var(--loc);}
+
+  footer{padding:50px 0 0;font-size:13px;color:var(--other);font-family:"JetBrains Mono",monospace;}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="eyebrow">NLP Course · Lesson Notes</div>
+  <h1>Named Entity Recognition</h1>
+  <p class="sub">Teaching a model to read a sentence and circle the parts that are actually <em>somebodies</em>, <em>somewheres</em>, and <em>somewhens</em> — the step that turns raw text into structured facts.</p>
+
+  <div class="ner-demo">
+    Ahmed Ibrahim<span class="ent e-person">PERSON</span> lived in Monufia<span class="ent e-loc">GPE</span> and was born in 1998<span class="ent e-misc">DATE</span>.
+  </div>
+  <div class="legend">
+    <span><span class="dot" style="background:var(--person)"></span>Person</span>
+    <span><span class="dot" style="background:var(--org)"></span>Organization</span>
+    <span><span class="dot" style="background:var(--loc)"></span>Location / GPE</span>
+    <span><span class="dot" style="background:var(--misc)"></span>Date / Money</span>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <section>
+    <div class="num">01</div>
+    <h2>What NER actually is</h2>
+    <p>Named Entity Recognition (NER) takes a raw sentence and pulls out the words that refer to real-world things, then labels each one with a category. Told <em>"My name is Ahmed Ibrahim, I lived in Monufia governorate, born in 1998,"</em> a person immediately understands: <strong>Ahmed Ibrahim</strong> is a person's name, <strong>Monufia</strong> is a place, <strong>1998</strong> is a date.</p>
+    <p>That's exactly what NER automates. You hand the model a dictionary of categories it should look for, and it scans the text and extracts the matching spans — this word is a person, this one is an action/organization, this one is a date, and so on.</p>
+  </section>
+
+  <section>
+    <div class="num">02</div>
+    <h2>Two libraries, two routes</h2>
+    <p>This lesson covers NER three ways: with 🤗 <strong>Hugging Face Transformers</strong> (a BERT model), with <strong>spaCy</strong>, and with <strong>NLTK</strong>. Each is demonstrated on the same kind of sentence so the results can be compared directly.</p>
+    <div class="apps">
+      <div class="app-card">
+        <span class="tag-label">Heaviest / most accurate</span>
+        <h4>Hugging Face + BERT</h4>
+        <p>Uses a transformer model rather than spaCy's lighter pipeline. In the lesson's harder example, BERT correctly caught a distinction that spaCy's small model missed.</p>
+      </div>
+      <div class="app-card">
+        <span class="tag-label">Fast / practical default</span>
+        <h4>spaCy</h4>
+        <p>Ships several pretrained sizes — small, medium, large, and a transformer-based variant — all sharing the same API, so switching model size doesn't change your code.</p>
+      </div>
+      <div class="app-card">
+        <span class="tag-label">Classic toolkit</span>
+        <h4>NLTK</h4>
+        <p>Builds entities on top of tokenization and POS tagging using <span class="mono">ne_chunk</span>, producing a tree structure instead of a flat list.</p>
+      </div>
+      <div class="app-card">
+        <span class="tag-label">Reality check</span>
+        <h4>No model is perfect</h4>
+        <p>All three approaches occasionally mislabel an entity or miss one entirely — the lesson deliberately shows these failures, not just the wins.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="num">03</div>
+    <h2>Route 1 — Hugging Face Transformers</h2>
+    <p>Hugging Face's model hub hosts many pretrained NER models — this lesson uses a BERT-based one. Setting it up is just three choices: pick a task, pick a pretrained model, pick its matching tokenizer, then wrap them in a <span class="mono">pipeline</span>.</p>
+
+    <div class="code"><span class="kw">from</span> transformers <span class="kw">import</span> pipeline, AutoModelForTokenClassification, AutoTokenizer
+
+model_name = <span class="str">"dslim/bert-base-NER"</span>   <span class="c1"># one of several pretrained NER models</span>
+model = AutoModelForTokenClassification.from_pretrained(model_name)
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+ner_pipeline = pipeline(<span class="str">"ner"</span>, model=model, tokenizer=tokenizer)
+ner_pipeline(<span class="str">"Sarah went to London."</span>)</div>
+
+    <p>Running it on <em>"Sarah went to London"</em> correctly returns Sarah as a <strong>PERSON</strong> and London as a <strong>LOCATION</strong>. The Hugging Face site's model page (linked in the pipeline's own documentation) lists every available pretrained model — small, medium, large, and transformer variants — all interchangeable through the same handful of lines of code.</p>
+  </section>
+
+  <section>
+    <div class="num">04</div>
+    <h2>Route 2 — spaCy</h2>
+    <p>As in the POS-tagging lesson, load a pretrained pipeline and hand it your text. spaCy automatically fills in <span class="mono">doc.ents</span> with every entity it found.</p>
+
+    <div class="code"><span class="kw">import</span> spacy
+
+nlp = spacy.load(<span class="str">"en_core_web_sm"</span>)
+doc = nlp(<span class="str">"Tesla Inc. made $5 billion dollars."</span>)
+
+<span class="fn">print</span>(doc.ents)
+<span class="c1"># -&gt; (Tesla Inc., $5 billion dollars)</span>
+
+<span class="kw">for</span> ent <span class="kw">in</span> doc.ents:
+    <span class="fn">print</span>(ent.text, ent.label_, spacy.explain(ent.label_))</div>
+
+    <table class="out-table">
+      <tr><th>Entity</th><th>label_</th><th>Meaning</th></tr>
+      <tr><td>Tesla Inc.</td><td class="tagcell"><span class="e-org">ORG</span></td><td>Companies, agencies, institutions</td></tr>
+      <tr><td>$5 billion dollars</td><td class="tagcell"><span class="e-misc">MONEY</span></td><td>Monetary values</td></tr>
+    </table>
+
+    <p>As with POS tags, unfamiliar entity labels can always be looked up with <span class="mono">spacy.explain()</span>, or in spaCy's own documentation, which lists every label and pipeline attribute (like <span class="mono">doc.ents</span> returning a tuple of spans) under each pipeline's page.</p>
+  </section>
+
+  <section>
+    <div class="num">05</div>
+    <h2>When the model gets it wrong</h2>
+    <p>Given <em>"Michael Bloomberg founded Bloomberg in 1982,"</em> spaCy's small model:</p>
+    <table class="out-table">
+      <tr><th>Entity</th><th>spaCy label</th><th>Correct?</th></tr>
+      <tr><td>Michael Bloomberg</td><td class="tagcell"><span class="e-person">PERSON</span></td><td>✓ Correct</td></tr>
+      <tr><td>Bloomberg</td><td class="tagcell"><span class="e-person">PERSON</span></td><td>✗ Should be ORG (the company/network)</td></tr>
+      <tr><td>1982</td><td class="tagcell"><span class="e-misc">DATE</span></td><td>✓ Correct</td></tr>
+    </table>
+
+    <div class="callout"><b>Miss —</b> the small spaCy model mislabels the second "Bloomberg" (the company) as a person instead of an organization.</div>
+
+    <p>Running the exact same sentence through the Hugging Face BERT model instead, it correctly separates the two: <strong>Michael Bloomberg</strong> as a person, and the standalone <strong>Bloomberg</strong> as an organization.</p>
+
+    <div class="callout ok"><b>Fix —</b> the larger transformer-based model (BERT, via Hugging Face) resolves the ambiguity that the lighter spaCy model missed. It's a reminder that model size and training data genuinely affect accuracy on ambiguous cases.</div>
+
+    <p>You can also train your own custom NER model for a specific domain — for example, gathering text from Twitter, Facebook, etc., labeling the categories you care about (person, organization, location…), and training a model on that labeled data from scratch.</p>
+  </section>
+
+  <section>
+    <div class="num">06</div>
+    <h2>Locating entities precisely</h2>
+    <p>Besides the entity text and label, spaCy tells you exactly where each entity starts and ends in the original string, using <span class="mono">start_char</span> and <span class="mono">end_char</span>:</p>
+
+    <div class="code"><span class="kw">for</span> ent <span class="kw">in</span> doc.ents:
+    <span class="fn">print</span>(ent.text, ent.label_, ent.start_char, ent.end_char)
+
+<span class="c1"># -&gt; Tesla Inc.   ORG    0   10</span>
+<span class="c1"># -&gt; Twitter Inc.  ORG   30   41</span>
+<span class="c1"># -&gt; $1 billion    MONEY 45   55</span></div>
+
+    <p>Those indices let you slice the exact substring back out of the original text — e.g. <span class="mono">text[0:10]</span> correctly returns <em>"Tesla Inc."</em> (Python slicing stops one index short of the end, so <span class="mono">end_char</span> works out neatly).</p>
+
+    <h3>A closer look at what the model is keying on</h3>
+    <p>Testing "Twitter" without the word "Inc" following it, or lowercasing "Inc" to "inc", makes the model fail to recognize it as a company at all — in the lowercase case it instead reads "Inc" alone as a person's name. This shows the model has effectively learned a pattern like: <em>a capitalized word immediately followed by a capitalized "Inc" tends to indicate an organization</em> — a good illustration of how these statistical patterns can be both powerful and brittle.</p>
+  </section>
+
+  <section>
+    <div class="num">07</div>
+    <h2>Manually correcting an entity with spaCy's <span class="mono">Span</span></h2>
+    <p>When spaCy misses or mislabels something, you can force the correct label onto a specific stretch of text using <span class="mono">Span</span>, then merge it back into the document's entities with <span class="mono">doc.set_ents()</span>.</p>
+
+    <div class="code"><span class="kw">from</span> spacy.tokens <span class="kw">import</span> Span
+
+<span class="c1"># manually tag token indices 5–7 ("Twitter") as ORG</span>
+new_entity = Span(doc, <span class="kw">5</span>, <span class="kw">7</span>, label=<span class="str">"ORG"</span>)
+
+doc.set_ents([new_entity], default=<span class="str">"unmodified"</span>)
+<span class="c1"># default="unmodified" keeps every other existing entity as-is</span>
+
+<span class="fn">print</span>(doc.ents)
+<span class="c1"># -&gt; now includes Twitter tagged as ORG</span></div>
+
+    <p>Re-running the loop over <span class="mono">doc.ents</span> afterward confirms the fix: "Twitter" now shows up labeled <strong>ORG</strong> alongside spaCy's other, correctly-detected entities.</p>
+  </section>
+
+  <section>
+    <div class="num">08</div>
+    <h2>Route 3 — NLTK</h2>
+    <p>NLTK builds NER on top of the same two building blocks from the last lesson: tokenizing and POS-tagging. A third function, <span class="mono">ne_chunk</span>, groups the tagged tokens into a tree, marking which branches are named entities.</p>
+
+    <div class="code"><span class="kw">import</span> nltk
+
+tokens = nltk.word_tokenize(text)
+pos_tags = nltk.pos_tag(tokens)
+tree = nltk.ne_chunk(pos_tags)
+
+<span class="fn">print</span>(tree)</div>
+
+    <p>The result looks like a set of small nested trees. To pull the entities back out as plain <span class="mono">(text, label)</span> pairs, walk the tree and check each subtree's label:</p>
+
+    <div class="code">entities = []
+
+<span class="kw">for</span> subtree <span class="kw">in</span> tree:
+    <span class="kw">if</span> hasattr(subtree, <span class="str">"label"</span>):
+        <span class="kw">if</span> subtree.label() <span class="kw">in</span> [<span class="str">"PERSON"</span>, <span class="str">"ORGANIZATION"</span>, <span class="str">"GPE"</span>]:
+            words = <span class="str">" "</span>.join(leaf[<span class="kw">0</span>] <span class="kw">for</span> leaf <span class="kw">in</span> subtree.leaves())
+            entities.append((words, subtree.label()))
+
+<span class="fn">print</span>(entities)</div>
+
+    <p>On the example sentence <em>"Steve Jobs, CEO of Apple, [was born in] California,"</em> NLTK correctly returns Steve Jobs and Jobs as <strong>PERSON</strong>, and CEO / Apple as <strong>ORGANIZATION</strong> — but, like spaCy's small model earlier, it fails to catch <strong>California</strong> as a location at all.</p>
+
+    <div class="callout"><b>Pattern —</b> across all three tools in this lesson, person and organization names tend to be caught reliably, while place names are the category most likely to slip through — worth remembering when picking (or fine-tuning) a model for a real project.</div>
+  </section>
+
+  <section>
+    <div class="num">09</div>
+    <h2>Wrap-up</h2>
+    <p>NER is conceptually simple — scan the text, find the spans that represent real-world things, label them with a category — but getting it right in practice depends heavily on which model you use and how it was trained. Hugging Face's BERT model, spaCy's pretrained pipelines, and NLTK's chunker all use different mechanics to arrive at the same kind of answer, and comparing their outputs side by side on the same sentence is a good habit for catching a given model's blind spots before relying on it.</p>
+  </section>
+
+  <footer>Notes compiled from an NLP course lesson on Named Entity Recognition (Hugging Face Transformers, spaCy &amp; NLTK).</footer>
+</div>
+
+</body>
+</html>
